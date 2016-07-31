@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Locale;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -140,6 +141,9 @@ public class TestOfConversion {
                     )
             ).click();
 
+            check_rate_string(currency_from, currency_to);
+
+
             waiter.until(
                     ExpectedConditions.presenceOfElementLocated(
                             By.id("to")
@@ -167,6 +171,35 @@ public class TestOfConversion {
         String str = String.format(Locale.ENGLISH, "%.2f", amount_from);
         saveAnRes(str, "Результат полученный аналитически");
         return Double.parseDouble(str);
+    }
+
+    @Step("Проверяем строку курса {0} -> {1} в нижней часте виджета")
+    private void check_rate_string(String currency_from, String currency_to) {
+        try {
+            String one = driver
+                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[1]"))
+                    .getText();
+            assertEquals("1", one);
+
+            String widget_currency_from = driver
+                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[3]"))
+                    .getText();
+            assertEquals(currency_from, widget_currency_from);
+
+            String eq_sign = driver
+                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[4]"))
+                    .getText();
+            assertEquals("=", eq_sign);
+
+            String widget_currency_to = driver
+                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[7]"))
+                    .getText();
+            assertEquals(currency_to, widget_currency_to);
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            fail("Строка курса не корректна");
+        }
+
     }
 
 
