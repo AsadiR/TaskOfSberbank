@@ -195,7 +195,7 @@ public class TestOfConversion {
                     .findElement(By.xpath("//div[@class='currency-converter-result']/span[7]"))
                     .getText();
             assertEquals(currency_to, widget_currency_to);
-        } catch (TimeoutException e) {
+        } catch (NoSuchElementException e) {
             e.printStackTrace();
             fail("Строка курса не корректна");
         }
