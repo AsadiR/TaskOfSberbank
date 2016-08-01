@@ -1,7 +1,5 @@
 package ru.Asadir.tests;
 
-
-
 import org.junit.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.TimeoutException;
@@ -18,27 +16,14 @@ import static org.junit.Assert.*;
 
 import java.util.Calendar;
 
+public class TestOfElements extends AbstractTest {
 
-public class TestOfElements {
-    private final String[] monthNames = {"января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"};
-    private static final String csv_file_name = "src/test/resources/ResForTestOfElements.csv";
-    private static final String sberbank_url = "http://www.sberbank.ru/ru/person";
-    private static WebDriver driver;
-    private static WebDriverWait waiter;
-
-
-
-    @BeforeClass
-    public static void openBrowser() {
-        driver = new FirefoxDriver();
-        driver.manage().window().maximize();
-        waiter = new WebDriverWait(driver, 5);
-    }
-
-    public TestOfElements() {
-
-    }
-
+    private final String[] monthNames = {
+        "января", "февраля", "марта",
+        "апреля", "мая", "июня",
+        "июля", "августа", "сентября",
+        "октября", "ноября", "декабря"
+    };
 
     @Title("Проверка даты в виджете")
     @Description("Сравниваем дату из виджета с текущей датой")
@@ -46,13 +31,19 @@ public class TestOfElements {
     @Test
     public void checkDate() {
         try {
-            driver.get(sberbank_url);
-            String date_from_widget = waiter.until(
-                    ExpectedConditions.presenceOfElementLocated(By.xpath("//span[@class='currency-converter-date']"))
-            ).getText();
+            String date_from_widget = page.get_text(page.element_date);
             Calendar now = Calendar.getInstance();
-            String cur_date = String.format("%s %s %s",
-                    now.get(Calendar.DATE), monthNames[now.get(Calendar.MONTH)], now.get(Calendar.YEAR));
+
+            int date = now.get(Calendar.DATE);
+            String str_date = String.valueOf(date);
+            if (date < 10) str_date = "0" + date;
+
+            String cur_date = String.format(
+                    "%s %s %s",
+                    str_date,
+                    monthNames[now.get(Calendar.MONTH)],
+                    now.get(Calendar.YEAR)
+            );
             assertEquals(date_from_widget, cur_date);
         } catch (TimeoutException e) {
             fail("Поле с датой не найдено");
@@ -63,30 +54,16 @@ public class TestOfElements {
     @Description("Метки должны содержать правильный текст")
     @Severity(SeverityLevel.MINOR)
     @Test
-    public void checkTextFields() {
+    public void checkLabels() {
         try {
-            driver.get(sberbank_url);
-            String text_from_for = waiter.until(
-                    ExpectedConditions.presenceOfElementLocated(
-                            By.xpath("//label[@class='col-xs-12 control-label'][@for='from']")
-                    )
-            ).getText();
-            assertEquals(text_from_for, "Поменять");
+            String text_from_label_from = page.get_text(page.element_label_from);
+            assertEquals(text_from_label_from, "Поменять");
 
-            String text_from_to = waiter.until(
-                    ExpectedConditions.presenceOfElementLocated(
-                            By.xpath("//label[@class='col-xs-12 control-label'][@for='to']")
-                    )
-            ).getText();
-            assertEquals(text_from_to, "На");
+            String text_from_label_to = page.get_text(page.element_label_to);
+            assertEquals(text_from_label_to, "На");
         } catch (TimeoutException e) {
             e.printStackTrace();
             fail("Метка 'На' или метка'Поменять' не найдена");
         }
-    }
-
-    @AfterClass
-    public static void closeBrowser() throws InterruptedException{
-        driver.quit();
     }
 }

@@ -1,19 +1,10 @@
 package ru.Asadir.tests;
 
-
-import com.opencsv.CSVReader;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import ru.yandex.qatools.allure.annotations.Description;
 import ru.yandex.qatools.allure.annotations.Severity;
 import ru.yandex.qatools.allure.annotations.Step;
@@ -21,36 +12,23 @@ import ru.yandex.qatools.allure.annotations.Title;
 import ru.yandex.qatools.allure.annotations.Attachment;
 import ru.yandex.qatools.allure.model.SeverityLevel;
 
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Locale;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @RunWith(Parameterized.class)
-public class TestOfConversion {
+public class TestOfConversion extends AbstractTest {
+
     private static final String csv_file_name = "src/test/resources/ResForTestOfConversion.csv";
-    private static final String sberbank_url = "http://www.sberbank.ru/ru/person";
-    private static WebDriver driver;
-    private static WebDriverWait waiter;
+
     private String currency_from;
     private String currency_to;
     private double amount_to;
 
-
-
-    @BeforeClass
-    public static void openBrowser() {
-        driver = new FirefoxDriver();
-        driver.manage().window().maximize();
-        waiter = new WebDriverWait(driver, 5);
-    }
-
-
     public TestOfConversion(String currency_from, String currency_to, String amount_to) {
+        super();
         this.currency_from = currency_from;
         this.currency_to = currency_to;
         this.amount_to = Double.parseDouble(amount_to);
@@ -58,15 +36,7 @@ public class TestOfConversion {
 
     @Parameterized.Parameters
     public static Collection readParams()  {
-        CSVReader reader;
-        try {
-            reader = new CSVReader(new FileReader(csv_file_name));
-            return reader.readAll();
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail("Проверьте наличие соответствующего csv файла в директории resources");
-            return null;
-        }
+        return read_csv(csv_file_name);
     }
 
     @Title("Проверка правильности конвертации")
@@ -74,32 +44,28 @@ public class TestOfConversion {
     @Severity(SeverityLevel.CRITICAL)
     @Test
     public void checkConversion() {
-        driver.get(sberbank_url);
-        //погрешность res1 +- 0.005
-        double res1 = convert(currency_from, currency_to, amount_to);
+        //погрешность converter_res +- 0.005
+        double converter_res = convert(currency_from, currency_to, amount_to);
         double price_of_one = 0;
         try {
-            String price_of_one_str = driver
-                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[5]"))
-                    .getText();
+            String price_of_one_str = page.get_text(page.element_price_of_one);
             //погрешность price_of_one +- 0.00005
             price_of_one = Double.parseDouble(price_of_one_str);
         } catch (NoSuchElementException e) {
             e.printStackTrace();
             fail("Не найдена подсказка 'о стоимости одной единицы валюты'");
         }
-
-        //погрешность price_of_one +- (0.00005 + погрешность от price_of_one)
-        double res2 = convert_analytically(amount_to, price_of_one);
+        //погрешность analitic_res +- (0.005 + погрешность от price_of_one)
+        double analitic_res = convert_analytically(amount_to, price_of_one);
 
         //хотелось бы сравнить значения, но тот факт, что price_of_one
         //кругляется до 4 цифр после запятой мешает это сделать.
         //assertEquals(res1, res2);
         //по этой причине  будем определять дельта окрестность исходя из количества потерянных
         //цифр при округлении до 4 знака после запятой
-        double delta = 2*0.00005/price_of_one;
-        assertTrue(res1 + res1 * delta > res2);
-        assertTrue(res1 - res1 * delta < res2);
+        double delta = 2 * 0.00005 / price_of_one;
+        assertTrue(converter_res + converter_res * delta > analitic_res);
+        assertTrue(converter_res - converter_res * delta < analitic_res);
     }
 
     @Attachment(value = "{0}", type = "text/plain")
@@ -115,52 +81,25 @@ public class TestOfConversion {
     @Step("Оцениваем стоимость {2} {1} в {0} с помощью конвертера")
     private double convert(String currency_from, String currency_to, double amount_to) {
         try {
-            waiter.until(
-                    ExpectedConditions.presenceOfElementLocated(
-                            By.xpath("//div[label='Поменять']/div[@class='input-group col-xs-12']/div[@class='input-group-addon']/div/a")
-                    )
-            ).click();
+            page.click_on_elem(page.element_dropdown_list_from);
+            page.select_element_in_dropdown_list(currency_from);
 
-            String xpath_from = String.format("//div[@class='select2-result-label'][@role='option'][contains(text(),'%s')]", currency_from);
-            waiter.until(
-                    ExpectedConditions.presenceOfElementLocated(
-                            By.xpath(xpath_from)
-                    )
-            ).click();
-
-            waiter.until(
-                    ExpectedConditions.presenceOfElementLocated(
-                            By.xpath("//div[label='На']/div[@class='input-group col-xs-12']/div[@class='input-group-addon']/div/a")
-                    )
-            ).click();
-
-            String xpath_to = String.format("//div[@class='select2-result-label'][@role='option'][contains(text(),'%s')]", currency_to);
-            waiter.until(
-                    ExpectedConditions.presenceOfElementLocated(
-                            By.xpath(xpath_to)
-                    )
-            ).click();
+            page.click_on_elem(page.element_dropdown_list_to);
+            page.select_element_in_dropdown_list(currency_to);
 
             check_rate_string(currency_from, currency_to);
 
+            page.type_value_in_field(page.element_text_field_to, String.valueOf(amount_to));
 
-            waiter.until(
-                    ExpectedConditions.presenceOfElementLocated(
-                            By.id("to")
-                    )
-            ).sendKeys(String.valueOf(amount_to));
-
-            String amount_from = driver.findElement(By.id("from")).getAttribute("value").replace(" ", "");
+            String amount_from = page
+                    .get_attr_value_from_field(page.element_text_field_from)
+                    .replace(" ", "");
             saveRealRes(amount_from, "Результат полученный с помощью конвертора");
 
             return Double.parseDouble(amount_from);
         } catch (TimeoutException e) {
             e.printStackTrace();
             fail("Не найдено поле для ввода или dropdown_menu");
-            return 0;
-        } catch (NoSuchElementException e) {
-            e.printStackTrace();
-            fail("Не найдено поле для ввода from");
             return 0;
         }
     }
@@ -176,35 +115,20 @@ public class TestOfConversion {
     @Step("Проверяем строку курса {0} -> {1} в нижней часте виджета")
     private void check_rate_string(String currency_from, String currency_to) {
         try {
-            String one = driver
-                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[1]"))
-                    .getText();
+            String one = page.get_text(page.element_one);
             assertEquals("1", one);
 
-            String widget_currency_from = driver
-                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[3]"))
-                    .getText();
+            String widget_currency_from = page.get_text(page.element_currency_from);
             assertEquals(currency_from, widget_currency_from);
 
-            String eq_sign = driver
-                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[4]"))
-                    .getText();
+            String eq_sign = page.get_text(page.element_eq_sign);
             assertEquals("=", eq_sign);
 
-            String widget_currency_to = driver
-                    .findElement(By.xpath("//div[@class='currency-converter-result']/span[7]"))
-                    .getText();
+            String widget_currency_to = page.get_text(page.element_currency_to);
             assertEquals(currency_to, widget_currency_to);
         } catch (NoSuchElementException e) {
             e.printStackTrace();
             fail("Строка курса не корректна");
         }
-
-    }
-
-
-    @AfterClass
-    public static void closeBrowser() throws InterruptedException{
-        driver.quit();
     }
 }
